@@ -1,0 +1,42 @@
+{
+  "name": "synthetic-data-generator-lab",
+  "version": "1.0.0",
+  "description": "A tool to generate synthetic datasets from database or JSON schemas",
+  "main": "dist/index.js",
+  "bin": {
+    "synthetic": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "cli": "tsx src/cli.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "keywords": [
+    "synthetic-data",
+    "data-generation",
+    "testing"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^8.4.2",
+    "@prisma/client": "^5.7.1",
+    "commander": "^11.1.0",
+    "fastify": "^4.25.2",
+    "faker": "^6.6.6",
+    "@faker-js/faker": "^8.3.1",
+    "openai": "^4.20.1",
+    "csv-writer": "^1.6.0",
+    "sql-parser": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "prisma": "^5.7.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

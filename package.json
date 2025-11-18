@@ -11,9 +11,21 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "cli": "tsx src/cli.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "keywords": [
     "synthetic-data",
@@ -31,12 +43,18 @@
     "@faker-js/faker": "^8.3.1",
     "openai": "^4.20.1",
     "csv-writer": "^1.6.0",
-    "sql-parser": "^0.1.0"
+    "sql-parser": "^0.1.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
     "prisma": "^5.7.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "@vitest/ui": "^1.1.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0"
   }
 }

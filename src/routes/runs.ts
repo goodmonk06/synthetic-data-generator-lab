@@ -4,26 +4,23 @@
 
 import { FastifyInstance } from 'fastify';
 import { executeRun, getRun, listRuns } from '../services/runService';
+import { getProfile } from '../services/profileService';
+import {
+  CreateRunSchema,
+  ListRunsQuerySchema,
+  UuidParamSchema,
+} from '../lib/validation';
+import { NotFoundError } from '../lib/errors';
 
 export async function runRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/runs
    * List all runs
    */
-  fastify.get<{
-    Querystring: {
-      profileId?: string;
-    };
-  }>('/api/runs', async (request, reply) => {
-    try {
-      const runs = await listRuns(request.query.profileId);
-      return { runs };
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to list runs',
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+  fastify.get('/api/runs', async (request, reply) => {
+    const query = ListRunsQuerySchema.parse(request.query);
+    const runs = await listRuns(query.profileId);
+    return { runs };
   });
 
   /**
@@ -31,44 +28,31 @@ export async function runRoutes(fastify: FastifyInstance) {
    * Get a specific run
    */
   fastify.get<{ Params: { id: string } }>('/api/runs/:id', async (request, reply) => {
-    try {
-      const run = await getRun(request.params.id);
+    const { id } = UuidParamSchema.parse({ id: request.params.id });
+    const run = await getRun(id);
 
-      if (!run) {
-        return reply.status(404).send({ error: 'Run not found' });
-      }
-
-      return { run };
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to get run',
-        message: error instanceof Error ? error.message : String(error),
-      });
+    if (!run) {
+      throw new NotFoundError('Run', id);
     }
+
+    return { run };
   });
 
   /**
    * POST /api/runs
    * Execute a new generation run
    */
-  fastify.post<{
-    Body: {
-      profileId: string;
-      format?: 'csv' | 'json';
-      outputDir?: string;
-    };
-  }>('/api/runs', async (request, reply) => {
-    try {
-      const { profileId, format = 'csv', outputDir = './output' } = request.body;
+  fastify.post('/api/runs', async (request, reply) => {
+    const data = CreateRunSchema.parse(request.body);
 
-      const run = await executeRun(profileId, format, outputDir);
-
-      return reply.status(201).send({ run });
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to execute run',
-        message: error instanceof Error ? error.message : String(error),
-      });
+    // Verify profile exists
+    const profile = await getProfile(data.profileId);
+    if (!profile) {
+      throw new NotFoundError('Profile', data.profileId);
     }
+
+    const run = await executeRun(data.profileId, data.format, data.outputDir);
+
+    return reply.status(201).send({ run });
   });
 }

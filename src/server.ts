@@ -7,23 +7,46 @@ import cors from '@fastify/cors';
 import { connectDb } from './lib/db';
 import { profileRoutes } from './routes/profiles';
 import { runRoutes } from './routes/runs';
+import { errorHandler } from './lib/errors';
 
 const PORT = parseInt(process.env.PORT || '3000');
 const HOST = process.env.HOST || '0.0.0.0';
 
 async function start() {
   const fastify = Fastify({
-    logger: true,
+    logger: {
+      level: process.env.LOG_LEVEL || 'info',
+    },
   });
+
+  // Register error handler
+  fastify.setErrorHandler(errorHandler);
 
   // Register CORS
   await fastify.register(cors, {
-    origin: true,
+    origin: process.env.CORS_ORIGIN || true,
   });
 
   // Health check
   fastify.get('/health', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+    };
+  });
+
+  // API root
+  fastify.get('/api', async () => {
+    return {
+      name: 'Synthetic Data Generator API',
+      version: '1.0.0',
+      endpoints: {
+        profiles: '/api/profiles',
+        runs: '/api/runs',
+        health: '/health',
+      },
+    };
   });
 
   // Register routes
@@ -54,6 +77,12 @@ async function start() {
     });
   });
 }
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err);
+  process.exit(1);
+});
 
 start().catch(err => {
   console.error('Failed to start server:', err);

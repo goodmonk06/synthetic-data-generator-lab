@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.env
+*.log
+.DS_Store
+output
+*.csv
+*.json
+.prisma
+README.md
+QUICKSTART.md
+.gitignore
+docker-compose.yml
+Dockerfile

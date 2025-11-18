@@ -17,6 +17,33 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - synthetic-net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: synthetic-data-app
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/synthetic_data_lab?schema=public"
+      PORT: 3000
+      HOST: 0.0.0.0
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./output:/app/output
+    networks:
+      - synthetic-net
+    restart: unless-stopped
+
+networks:
+  synthetic-net:
+    driver: bridge
 
 volumes:
   postgres_data:

@@ -10,7 +10,12 @@ import {
   updateProfile,
   deleteProfile,
 } from '../services/profileService';
-import { SourceType } from '@prisma/client';
+import {
+  CreateProfileSchema,
+  UpdateProfileSchema,
+  UuidParamSchema,
+} from '../lib/validation';
+import { NotFoundError } from '../lib/errors';
 
 export async function profileRoutes(fastify: FastifyInstance) {
   /**
@@ -18,15 +23,8 @@ export async function profileRoutes(fastify: FastifyInstance) {
    * List all profiles
    */
   fastify.get('/api/profiles', async (request, reply) => {
-    try {
-      const profiles = await listProfiles();
-      return { profiles };
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to list profiles',
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+    const profiles = await listProfiles();
+    return { profiles };
   });
 
   /**
@@ -34,67 +32,42 @@ export async function profileRoutes(fastify: FastifyInstance) {
    * Get a specific profile
    */
   fastify.get<{ Params: { id: string } }>('/api/profiles/:id', async (request, reply) => {
-    try {
-      const profile = await getProfile(request.params.id);
+    const { id } = UuidParamSchema.parse({ id: request.params.id });
+    const profile = await getProfile(id);
 
-      if (!profile) {
-        return reply.status(404).send({ error: 'Profile not found' });
-      }
-
-      return { profile };
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to get profile',
-        message: error instanceof Error ? error.message : String(error),
-      });
+    if (!profile) {
+      throw new NotFoundError('Profile', id);
     }
+
+    return { profile };
   });
 
   /**
    * POST /api/profiles
    * Create a new profile
    */
-  fastify.post<{
-    Body: {
-      name: string;
-      sourceType: SourceType;
-      sourceSchemaJson: object;
-      rulesJson: object;
-      rowCount?: number;
-    };
-  }>('/api/profiles', async (request, reply) => {
-    try {
-      const profile = await createProfile(request.body);
-      return reply.status(201).send({ profile });
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to create profile',
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
+  fastify.post('/api/profiles', async (request, reply) => {
+    const data = CreateProfileSchema.parse(request.body);
+    const profile = await createProfile(data);
+    return reply.status(201).send({ profile });
   });
 
   /**
    * PUT /api/profiles/:id
    * Update a profile
    */
-  fastify.put<{
-    Params: { id: string };
-    Body: {
-      name?: string;
-      rulesJson?: object;
-      rowCount?: number;
-    };
-  }>('/api/profiles/:id', async (request, reply) => {
-    try {
-      const profile = await updateProfile(request.params.id, request.body);
-      return { profile };
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to update profile',
-        message: error instanceof Error ? error.message : String(error),
-      });
+  fastify.put<{ Params: { id: string } }>('/api/profiles/:id', async (request, reply) => {
+    const { id } = UuidParamSchema.parse({ id: request.params.id });
+    const data = UpdateProfileSchema.parse(request.body);
+
+    // Check if profile exists
+    const existing = await getProfile(id);
+    if (!existing) {
+      throw new NotFoundError('Profile', id);
     }
+
+    const profile = await updateProfile(id, data);
+    return { profile };
   });
 
   /**
@@ -102,14 +75,15 @@ export async function profileRoutes(fastify: FastifyInstance) {
    * Delete a profile
    */
   fastify.delete<{ Params: { id: string } }>('/api/profiles/:id', async (request, reply) => {
-    try {
-      await deleteProfile(request.params.id);
-      return reply.status(204).send();
-    } catch (error) {
-      reply.status(500).send({
-        error: 'Failed to delete profile',
-        message: error instanceof Error ? error.message : String(error),
-      });
+    const { id } = UuidParamSchema.parse({ id: request.params.id });
+
+    // Check if profile exists
+    const existing = await getProfile(id);
+    if (!existing) {
+      throw new NotFoundError('Profile', id);
     }
+
+    await deleteProfile(id);
+    return reply.status(204).send();
   });
 }

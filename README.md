@@ -1,321 +1,319 @@
 # Synthetic Data Generator Lab
 
-A powerful tool to generate synthetic datasets from database schemas or JSON schemas. Perfect for testing, development, and demonstrations without using real user data.
+A production-ready tool to generate realistic synthetic datasets from database schemas or JSON schemas. Perfect for testing, development, and demonstrations without using real user data.
 
-## Features
+## Overview
 
-- 🔧 **Schema-based Generation**: Parse SQL `CREATE TABLE` statements and automatically infer generation rules
-- 🎲 **Intelligent Data Generation**: Uses [@faker-js/faker](https://github.com/faker-js/faker) to generate realistic data
-- 🤖 **AI-Powered Suggestions**: Optional OpenAI integration to suggest better generation rules
-- 📊 **Multiple Output Formats**: Export to CSV or JSON
-- 🔌 **REST API**: Manage profiles and runs via HTTP endpoints
-- 💻 **CLI Interface**: Command-line tools for easy automation
-- 📈 **Tracking**: Store and track all generation runs with Prisma + PostgreSQL
+The Synthetic Data Generator Lab provides a complete solution for generating high-quality synthetic data based on your database schemas. It intelligently infers generation rules from column names and types, supports custom rules, and can even leverage AI to suggest realistic data patterns.
+
+**Key Features:**
+- 🎯 **Schema-driven**: Parse SQL `CREATE TABLE` statements automatically
+- 🤖 **AI-powered**: Optional OpenAI integration for smarter rule suggestions
+- 🔧 **Flexible Rules**: Customize generation for each field
+- 📊 **Multiple Formats**: Export to CSV or JSON
+- 🔌 **REST API**: Full-featured API with validation and error handling
+- 💻 **CLI Tools**: Command-line interface for automation
+- 🐳 **Docker Ready**: Complete containerization with docker-compose
+- ✅ **Type-safe**: End-to-end TypeScript with Zod validation
+- 🧪 **Tested**: Comprehensive test coverage with Vitest
 
 ## Tech Stack
 
-- **Backend**: Fastify + TypeScript
+### Core
+- **Runtime**: Node.js 20+
+- **Language**: TypeScript
+- **API Framework**: Fastify
+- **Database**: PostgreSQL with Prisma ORM
 - **CLI**: Commander.js
-- **Database**: Prisma + PostgreSQL
+
+### Libraries
 - **Data Generation**: @faker-js/faker
+- **Validation**: Zod
+- **Testing**: Vitest
 - **AI (Optional)**: OpenAI
 
-## Quick Start
+## Domain Model
 
-### Prerequisites
+### Entities
 
-- Node.js 18+
-- PostgreSQL database
-- (Optional) OpenAI API key for AI suggestions
+**GenerationProfile**
+- Core entity representing a data generation configuration
+- Contains source schema (from SQL or JSON)
+- Stores generation rules for each field
+- Tracks row count and metadata
 
-### Installation
+**GenerationRun**
+- Represents a single execution of data generation
+- Links to a GenerationProfile
+- Tracks status (PENDING, RUNNING, COMPLETED, FAILED)
+- Stores output path and generation results
 
-1. Clone the repository:
+### Relationships
+- One Profile → Many Runs (1:N)
+- Runs cascade delete when Profile is deleted
+
+## Getting Started
+
+### Requirements
+
+- **Node.js** 18 or higher
+- **Docker** and Docker Compose
+- **PostgreSQL** 15+ (via Docker or local)
+- (Optional) **OpenAI API key** for AI-powered suggestions
+
+### Quick Setup
+
+1. **Clone and install**
 ```bash
 git clone <repository-url>
 cd synthetic-data-generator-lab
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Set up environment variables:
+2. **Configure environment**
 ```bash
 cp .env.example .env
-# Edit .env with your database URL and optional OpenAI API key
+# Edit .env with your settings (DATABASE_URL, optional OPENAI_API_KEY)
 ```
 
-4. Initialize the database:
+3. **Start with Docker (Recommended)**
 ```bash
-npx prisma migrate dev --name init
-npx prisma generate
+# Start PostgreSQL and the application
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f app
 ```
 
-5. Build the project:
+4. **Or start locally**
 ```bash
-npm run build
-```
+# Start only PostgreSQL
+docker compose -f docker-compose.dev.yml up -d
 
-### Running the API Server
+# Run migrations
+npm run db:migrate:dev
 
-Start the Fastify API server:
+# Seed database with examples
+npm run db:seed
 
-```bash
+# Start development server
 npm run dev
-# or for production:
-npm start
 ```
 
-The server will start at `http://localhost:3000`.
-
-## Usage
-
-### CLI Commands
-
-#### 1. Create a Profile from SQL
-
-Generate a profile from a `CREATE TABLE` statement:
+### Verify Installation
 
 ```bash
-npm run cli init-from-sql examples/residents.sql
-```
+# Check API health
+curl http://localhost:3000/health
 
-With custom options:
-
-```bash
-npm run cli init-from-sql examples/residents.sql \
-  --name "My Residents" \
-  --rows 500 \
-  --ai  # Use AI to suggest better rules
-```
-
-Output:
-```
-Reading SQL file: examples/residents.sql
-Parsing CREATE TABLE statement...
-✓ Parsed table: residents
-  Columns: id, first_name, last_name, email, phone, ...
-
-Inferring generation rules...
-✓ Profile created successfully!
-  Profile ID: 550e8400-e29b-41d4-a716-446655440000
-  Name: residents
-  Rows to generate: 100
-
-Run: synthetic run 550e8400-e29b-41d4-a716-446655440000
-```
-
-#### 2. Generate Data
-
-Run data generation for a profile:
-
-```bash
-npm run cli run <profile-id>
-```
-
-With options:
-
-```bash
-npm run cli run <profile-id> \
-  --format json \
-  --output ./my-data
-```
-
-Output:
-```
-Running generation for profile: 550e8400-e29b-41d4-a716-446655440000
-
-✓ Generation completed!
-  Run ID: 660e8400-e29b-41d4-a716-446655440001
-  Rows generated: 100
-  Output: ./output/residents_2025-01-15T10-30-00-000Z.csv
-```
-
-#### 3. List Profiles
-
-View all generation profiles:
-
-```bash
+# List profiles (should show 3 sample profiles from seed)
 npm run cli list-profiles
 ```
 
-#### 4. Show Profile Details
+## Example Flow: Complete Vertical Slice
 
-View detailed information about a profile, including generation rules:
+This example demonstrates the full workflow from schema to generated data.
+
+### 1. Create a Profile from SQL
 
 ```bash
-npm run cli show-profile <profile-id>
+# Use the example residents table
+npm run cli init-from-sql examples/residents.sql --rows 500
 ```
 
-#### 5. List Runs
-
-View generation run history:
-
-```bash
-npm run cli list-runs
-
-# Filter by profile:
-npm run cli list-runs --profile <profile-id>
+**Output:**
+```
+✓ Parsed table: residents
+  Columns: id, first_name, last_name, email, phone, ...
+✓ Profile created successfully!
+  Profile ID: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-### API Endpoints
-
-#### Profiles
-
-- `GET /api/profiles` - List all profiles
-- `GET /api/profiles/:id` - Get profile details
-- `POST /api/profiles` - Create a new profile
-- `PUT /api/profiles/:id` - Update a profile
-- `DELETE /api/profiles/:id` - Delete a profile
-
-#### Runs
-
-- `GET /api/runs` - List all runs (optional `?profileId=` filter)
-- `GET /api/runs/:id` - Get run details
-- `POST /api/runs` - Execute a generation run
-
-#### Example API Usage
-
-Create a profile:
+### 2. View Profile Details
 
 ```bash
-curl -X POST http://localhost:3000/api/profiles \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Test Users",
-    "sourceType": "RDB",
-    "sourceSchemaJson": {...},
-    "rulesJson": {...},
-    "rowCount": 100
-  }'
+npm run cli show-profile 550e8400-e29b-41d4-a716-446655440000
 ```
 
-Execute a run:
+This shows the inferred generation rules. The system automatically:
+- Detects `email` field → uses email generator
+- Detects `first_name` → uses firstName generator
+- Detects `phone` → uses phone number generator
+- Sets appropriate ranges for numeric fields
+
+### 3. Generate Data via CLI
 
 ```bash
+npm run cli run 550e8400-e29b-41d4-a716-446655440000 --format csv
+```
+
+**Output:**
+```
+✓ Generation completed!
+  Rows generated: 500
+  Output: ./output/residents_2025-01-18T10-30-00-000Z.csv
+```
+
+### 4. Or use the API
+
+```bash
+# Create a run via API
 curl -X POST http://localhost:3000/api/runs \
   -H "Content-Type: application/json" \
   -d '{
     "profileId": "550e8400-e29b-41d4-a716-446655440000",
-    "format": "csv",
+    "format": "json",
     "outputDir": "./output"
   }'
 ```
 
-## Examples
-
-### Example 1: Generating Resident Data
-
-1. Create a profile from the SQL schema:
-
-```bash
-npm run cli init-from-sql examples/residents.sql --rows 1000
-```
-
-2. Generate the data:
-
-```bash
-npm run cli run <profile-id> --format csv
-```
-
-3. Output file (`residents_*.csv`):
-
-```csv
-id,first_name,last_name,email,phone,date_of_birth,move_in_date,apartment_number,monthly_rent,emergency_contact_name,emergency_contact_phone,is_active
-1,John,Doe,john.doe@example.com,555-1234,1985-03-15,2023-01-10,101,1500.00,Jane Doe,555-5678,true
-2,Alice,Smith,alice.smith@example.com,555-8765,1990-07-22,2023-02-01,202,1750.00,Bob Smith,555-4321,true
-...
-```
-
-### Example 2: Generating User Data
-
-```bash
-npm run cli init-from-sql examples/users.sql --ai --rows 500
-npm run cli run <profile-id> --format json
-```
-
-### Example 3: Custom Generation Rules
-
-You can manually edit generation rules via the API:
-
-```bash
-curl -X PUT http://localhost:3000/api/profiles/<profile-id> \
-  -H "Content-Type: application/json" \
-  -d '{
-    "rulesJson": {
-      "email": {
-        "columnName": "email",
-        "type": "email",
-        "generator": "email",
-        "nullable": false
-      },
-      "age": {
-        "columnName": "age",
-        "type": "int",
-        "min": 18,
-        "max": 65,
-        "nullable": false
-      }
-    }
-  }'
-```
-
-## Generation Rules
-
-The system supports various generation rule types:
-
-### Field Types
-
-- `string` - Random strings with min/max length
-- `int` - Random integers with min/max range
-- `float` - Random floating-point numbers
-- `boolean` - Random true/false values
-- `date` - Random dates within a range
-- `datetime` - Random timestamps
-- `enum` - Random selection from a list of values
-- `uuid` - UUID v4 strings
-- `email` - Realistic email addresses
-- `phone` - Phone numbers
-- `json` - Random JSON objects
-
-### Special Generators
-
-- `firstName` - Realistic first names
-- `lastName` - Realistic last names
-- `company` - Company names
-- `address` - Street addresses
-- `city` - City names
-- `country` - Country names
-- `url` - URLs
-- `lorem` - Lorem ipsum text
-
-### Example Rule Object
-
+**Response:**
 ```json
 {
-  "email": {
-    "columnName": "email",
-    "type": "email",
-    "generator": "email",
-    "nullable": false
-  },
-  "age": {
-    "columnName": "age",
-    "type": "int",
-    "min": 18,
-    "max": 100,
-    "nullable": false
-  },
-  "bio": {
-    "columnName": "bio",
-    "type": "string",
-    "generator": "lorem",
-    "nullable": true
+  "run": {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "profileId": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "COMPLETED",
+    "outputPath": "./output/residents_2025-01-18T10-30-00-000Z.json",
+    "rowsGenerated": 500,
+    "startedAt": "2025-01-18T10:30:00.000Z",
+    "finishedAt": "2025-01-18T10:30:01.234Z"
   }
 }
 ```
+
+### 5. Customize Rules via API
+
+```bash
+# Update generation rules for more control
+curl -X PUT http://localhost:3000/api/profiles/550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rulesJson": {
+      "monthly_rent": {
+        "columnName": "monthly_rent",
+        "type": "float",
+        "min": 800,
+        "max": 3500,
+        "nullable": false
+      }
+    },
+    "rowCount": 1000
+  }'
+```
+
+### 6. Check the Generated Data
+
+```bash
+cat ./output/residents_*.csv | head -n 5
+```
+
+**Result:**
+```csv
+id,first_name,last_name,email,phone,date_of_birth,move_in_date,apartment_number,monthly_rent
+1,John,Doe,john.doe@example.com,555-1234,1985-03-15,2023-01-10,101,1500.00
+2,Alice,Smith,alice.smith@example.com,555-8765,1990-07-22,2023-02-01,202,1750.00
+3,Bob,Johnson,bob.johnson@example.com,555-9876,1988-11-30,2023-03-15,303,1200.00
+```
+
+## API Reference
+
+### Profiles
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/profiles` | List all profiles |
+| `GET` | `/api/profiles/:id` | Get profile details |
+| `POST` | `/api/profiles` | Create new profile |
+| `PUT` | `/api/profiles/:id` | Update profile rules |
+| `DELETE` | `/api/profiles/:id` | Delete profile |
+
+### Runs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/runs` | List all runs (optional `?profileId=`) |
+| `GET` | `/api/runs/:id` | Get run details |
+| `POST` | `/api/runs` | Execute generation |
+
+### Validation
+
+All API requests are validated with Zod schemas. Invalid requests return:
+
+```json
+{
+  "error": "Validation Error",
+  "message": "Invalid request data",
+  "statusCode": 400,
+  "details": [
+    {
+      "path": "name",
+      "message": "String must contain at least 1 character(s)"
+    }
+  ]
+}
+```
+
+## Development Commands
+
+### Essential Commands
+```bash
+npm run dev              # Start dev server with hot reload
+npm run build            # Build TypeScript to dist/
+npm start                # Run production build
+npm test                 # Run tests
+npm run test:watch       # Run tests in watch mode
+npm run lint             # Lint code
+npm run lint:fix         # Lint and auto-fix
+```
+
+### Database Commands
+```bash
+npm run db:generate      # Generate Prisma client
+npm run db:migrate       # Run migrations (production)
+npm run db:migrate:dev   # Run migrations (development)
+npm run db:push          # Push schema without migration
+npm run db:seed          # Seed database with examples
+npm run db:studio        # Open Prisma Studio
+npm run db:reset         # Reset database (⚠️ destructive)
+```
+
+### Docker Commands
+```bash
+npm run docker:up        # Start all services
+npm run docker:down      # Stop all services
+npm run docker:logs      # View logs
+```
+
+### CLI Commands
+```bash
+npm run cli -- init-from-sql examples/users.sql
+npm run cli -- run <profile-id>
+npm run cli -- list-profiles
+npm run cli -- show-profile <profile-id>
+npm run cli -- list-runs
+```
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# With coverage
+npm run test:ui
+```
+
+**Test Coverage:**
+- SQL parser: Schema extraction and type mapping
+- Data generator: Rule-based generation, ranges, nullable fields
+- Rule inference: Smart detection based on column names
 
 ## Project Structure
 
@@ -323,107 +321,222 @@ The system supports various generation rule types:
 synthetic-data-generator-lab/
 ├── src/
 │   ├── lib/
-│   │   ├── sqlParser.ts       # Parse CREATE TABLE statements
-│   │   ├── ruleGenerator.ts   # Infer generation rules
-│   │   ├── dataGenerator.ts   # Generate synthetic data
-│   │   ├── outputWriter.ts    # Write CSV/JSON output
-│   │   ├── aiSuggestions.ts   # OpenAI integration
-│   │   └── db.ts              # Prisma client
+│   │   ├── sqlParser.ts          # Parse CREATE TABLE statements
+│   │   ├── ruleGenerator.ts      # Infer generation rules
+│   │   ├── dataGenerator.ts      # Generate synthetic data
+│   │   ├── outputWriter.ts       # CSV/JSON writers
+│   │   ├── validation.ts         # Zod schemas
+│   │   ├── errors.ts             # Error handling
+│   │   ├── aiSuggestions.ts      # OpenAI integration
+│   │   ├── db.ts                 # Prisma client
+│   │   └── __tests__/            # Unit tests
 │   ├── services/
-│   │   ├── profileService.ts  # Profile CRUD operations
-│   │   └── runService.ts      # Run execution logic
+│   │   ├── profileService.ts     # Profile CRUD
+│   │   └── runService.ts         # Run execution
 │   ├── routes/
-│   │   ├── profiles.ts        # Profile API routes
-│   │   └── runs.ts            # Run API routes
-│   ├── cli.ts                 # CLI entry point
-│   └── server.ts              # Fastify server
+│   │   ├── profiles.ts           # Profile API
+│   │   └── runs.ts               # Run API
+│   ├── cli.ts                    # CLI entry point
+│   └── server.ts                 # Fastify server
 ├── prisma/
-│   └── schema.prisma          # Database schema
+│   ├── schema.prisma             # Database schema
+│   └── seed.ts                   # Seed script
 ├── examples/
-│   ├── residents.sql          # Example: residents table
-│   ├── users.sql              # Example: users table
-│   └── products.sql           # Example: products table
-├── output/                    # Generated data files
-├── package.json
-└── README.md
+│   ├── residents.sql             # Example schemas
+│   ├── users.sql
+│   └── products.sql
+├── output/                       # Generated data files
+├── Dockerfile                    # Multi-stage Docker build
+├── docker-compose.yml            # Full stack (app + db)
+├── docker-compose.dev.yml        # DB only for local dev
+└── vitest.config.ts              # Test configuration
 ```
 
-## Database Schema
+## Environment Variables
 
-### GenerationProfile
-
-Stores generation configuration:
-
-- `id` - UUID
-- `name` - Profile name
-- `sourceType` - `RDB` or `JSON`
-- `sourceSchemaJson` - Parsed table/JSON schema
-- `rulesJson` - Generation rules for each field
-- `rowCount` - Number of rows to generate
-- `createdAt`, `updatedAt` - Timestamps
-
-### GenerationRun
-
-Tracks generation executions:
-
-- `id` - UUID
-- `profileId` - Foreign key to GenerationProfile
-- `startedAt`, `finishedAt` - Timestamps
-- `status` - `PENDING`, `RUNNING`, `COMPLETED`, or `FAILED`
-- `outputPath` - Path to generated file
-- `rowsGenerated` - Number of rows created
-- `errorMessage` - Error details if failed
-
-## Development
-
-### Running Tests
+Create `.env` from `.env.example`:
 
 ```bash
-npm test
+# Database (required)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/synthetic_data_lab?schema=public"
+
+# Server (optional)
+PORT=3000
+HOST=0.0.0.0
+NODE_ENV=development
+LOG_LEVEL=info
+CORS_ORIGIN=*
+
+# AI Features (optional)
+OPENAI_API_KEY=sk-...
 ```
 
-### Database Migrations
+## Docker Deployment
 
-Create a new migration:
+### Production Deployment
 
 ```bash
-npx prisma migrate dev --name <migration-name>
+# Build and start
+docker compose up -d
+
+# Scale (if needed)
+docker compose up -d --scale app=3
+
+# Update
+docker compose pull
+docker compose up -d
 ```
 
-View database in Prisma Studio:
+### Development with Docker
 
 ```bash
-npm run prisma:studio
-```
+# Start only PostgreSQL
+docker compose -f docker-compose.dev.yml up -d
 
-### TypeScript Build
-
-Watch mode for development:
-
-```bash
+# Develop locally
 npm run dev
 ```
 
-Production build:
+## Generation Rules Reference
+
+### Field Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | Random strings | "Lorem ipsum" |
+| `int` | Integers | 42 |
+| `float` | Decimals | 3.14 |
+| `boolean` | true/false | true |
+| `date` | Date only | "2024-01-15" |
+| `datetime` | Full timestamp | "2024-01-15T10:30:00Z" |
+| `uuid` | UUID v4 | "550e8400-e29b-..." |
+| `email` | Email addresses | "user@example.com" |
+| `phone` | Phone numbers | "555-1234" |
+| `enum` | From list | "active" |
+
+### Special Generators
+
+| Generator | Output |
+|-----------|--------|
+| `firstName` | "John" |
+| `lastName` | "Doe" |
+| `company` | "Acme Corp" |
+| `address` | "123 Main St" |
+| `city` | "New York" |
+| `country` | "United States" |
+| `url` | "https://example.com" |
+| `lorem` | Lorem ipsum text |
+
+### Rule Schema
+
+```typescript
+{
+  columnName: string;
+  type: 'string' | 'int' | 'float' | ...;
+  nullable: boolean;
+
+  // String options
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+
+  // Number options
+  min?: number;
+  max?: number;
+
+  // Date options
+  minDate?: string;
+  maxDate?: string;
+
+  // Enum options
+  values?: string[];
+
+  // Special generator
+  generator?: 'email' | 'firstName' | ...;
+}
+```
+
+## Future Extensions
+
+Phase 3 roadmap:
+
+- [ ] **Web UI** (Next.js)
+  - Profile editor with visual rule builder
+  - Run history and download management
+  - Real-time generation progress
+
+- [ ] **Advanced Features**
+  - JSON schema support (not just SQL)
+  - Foreign key relationships
+  - Custom generator plugins
+  - Streaming for large datasets (1M+ rows)
+
+- [ ] **Data Quality**
+  - Unique constraint enforcement
+  - Referential integrity
+  - Custom validation rules
+  - Data distribution controls
+
+- [ ] **Export Formats**
+  - SQL INSERT statements
+  - Parquet files
+  - Excel (XLSX)
+  - Database direct insert
+
+- [ ] **Collaboration**
+  - Share profiles between teams
+  - Version control for rules
+  - Template marketplace
+
+## Troubleshooting
+
+### Database Connection Issues
 
 ```bash
+# Check PostgreSQL is running
+docker compose ps
+
+# View logs
+docker compose logs postgres
+
+# Restart
+docker compose restart postgres
+```
+
+### Build Errors
+
+```bash
+# Clean and rebuild
+rm -rf node_modules dist
+npm install
 npm run build
 ```
 
-## Future Enhancements
+### Port Already in Use
 
-- [ ] JSON schema support (in addition to SQL)
-- [ ] Support for foreign key relationships
-- [ ] Web UI with Next.js (profiles, runs, downloads)
-- [ ] More output formats (SQL INSERT, Parquet, etc.)
-- [ ] Advanced constraints (unique combinations, checksums)
-- [ ] Streaming generation for very large datasets
-- [ ] Docker Compose setup
+```bash
+# Change port in .env
+PORT=3001
+
+# Or stop conflicting service
+lsof -ti:3000 | xargs kill
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Run `npm test` and `npm run lint`
+6. Submit a pull request
 
 ## License
 
 MIT
 
-## Contributing
+## Support
 
-Contributions are welcome! Please open an issue or submit a pull request.
+- **Documentation**: See [QUICKSTART.md](QUICKSTART.md) for quick setup
+- **Issues**: Report bugs on GitHub Issues
+- **Examples**: Check `/examples` directory for SQL templates

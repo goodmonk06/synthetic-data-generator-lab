@@ -16,6 +16,13 @@ The Synthetic Data Generator Lab provides a complete solution for generating hig
 - 🐳 **Docker Ready**: Complete containerization with docker-compose
 - ✅ **Type-safe**: End-to-end TypeScript with Zod validation
 - 🧪 **Tested**: Comprehensive test coverage with Vitest
+- 📋 **Templates**: Reusable profiles with parameterization
+- ⏰ **Scheduling**: Cron-based automated generation
+- 🏷️ **Tagging**: Organize profiles by team, environment, or use case
+- 🔔 **Webhooks**: Event-driven notifications with HMAC security
+- 📸 **Snapshots**: Version control for generation profiles
+- 🔌 **Extensible**: Plugin system with adapters for generators, outputs, and notifications
+- 📊 **Observability**: Structured logging and metrics collection
 
 ## Tech Stack
 
@@ -30,26 +37,66 @@ The Synthetic Data Generator Lab provides a complete solution for generating hig
 - **Data Generation**: @faker-js/faker
 - **Validation**: Zod
 - **Testing**: Vitest
+- **Scheduling**: cron-parser
 - **AI (Optional)**: OpenAI
 
 ## Domain Model
 
-### Entities
+### Core Entities
 
 **GenerationProfile**
 - Core entity representing a data generation configuration
 - Contains source schema (from SQL or JSON)
 - Stores generation rules for each field
 - Tracks row count and metadata
+- **Phase 3**: Template support with parameterization and inheritance
 
 **GenerationRun**
 - Represents a single execution of data generation
 - Links to a GenerationProfile
-- Tracks status (PENDING, RUNNING, COMPLETED, FAILED)
+- Tracks status (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED)
 - Stores output path and generation results
+- **Phase 3**: Enhanced with output format, execution time, trigger source, and metadata
+
+### Phase 3 Extensions
+
+**Template**
+- Reusable profiles with parameterization
+- Parent-child relationships for profile inheritance
+- Parameter substitution in generation rules
+- Perfect for standardizing across teams
+
+**Tag**
+- Organize profiles by category, environment, or use case
+- Many-to-many relationship with profiles
+- Color-coded for visual organization
+- Filter and search profiles by tags
+
+**ProfileSnapshot**
+- Version control for generation profiles
+- Capture complete profile state (schema, rules, settings)
+- Restore to previous versions
+- Compare snapshots to track changes
+
+**Schedule**
+- Cron-based automated generation
+- Links to a profile for recurring runs
+- Tracks next run time and execution history
+- Enable/disable schedules dynamically
+
+**Webhook**
+- Event-driven notifications (run.completed, run.failed, etc.)
+- HMAC signatures for secure delivery
+- Custom headers and retry logic
+- Integrate with Slack, Discord, analytics, etc.
 
 ### Relationships
 - One Profile → Many Runs (1:N)
+- One Profile → Many Snapshots (1:N)
+- One Profile → Many Schedules (1:N)
+- Many Profiles ↔ Many Tags (M:N via ProfileTag)
+- One Template → Many Child Profiles (1:N)
+- One Schedule → Many Runs (1:N)
 - Runs cascade delete when Profile is deleted
 
 ## Getting Started
@@ -221,7 +268,9 @@ id,first_name,last_name,email,phone,date_of_birth,move_in_date,apartment_number,
 
 ## API Reference
 
-### Profiles
+### Core Endpoints
+
+**Profiles**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -231,13 +280,75 @@ id,first_name,last_name,email,phone,date_of_birth,move_in_date,apartment_number,
 | `PUT` | `/api/profiles/:id` | Update profile rules |
 | `DELETE` | `/api/profiles/:id` | Delete profile |
 
-### Runs
+**Runs**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/runs` | List all runs (optional `?profileId=`) |
 | `GET` | `/api/runs/:id` | Get run details |
 | `POST` | `/api/runs` | Execute generation |
+
+### Phase 3 Endpoints
+
+**Templates**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/templates` | List all templates |
+| `GET` | `/api/templates/:id` | Get template details |
+| `POST` | `/api/templates` | Create new template |
+| `POST` | `/api/templates/:id/instantiate` | Create profile from template |
+| `DELETE` | `/api/templates/:id` | Delete template |
+
+**Schedules**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/schedules` | List all schedules |
+| `GET` | `/api/schedules/:id` | Get schedule details |
+| `POST` | `/api/schedules` | Create new schedule |
+| `PUT` | `/api/schedules/:id` | Update schedule |
+| `DELETE` | `/api/schedules/:id` | Delete schedule |
+
+**Tags**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/tags` | List all tags |
+| `GET` | `/api/tags/:id` | Get tag details |
+| `POST` | `/api/tags` | Create new tag |
+| `PUT` | `/api/tags/:id` | Update tag |
+| `DELETE` | `/api/tags/:id` | Delete tag |
+| `POST` | `/api/profiles/:profileId/tags/:tagId` | Add tag to profile |
+| `DELETE` | `/api/profiles/:profileId/tags/:tagId` | Remove tag from profile |
+
+**Webhooks**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/webhooks` | List all webhooks |
+| `GET` | `/api/webhooks/:id` | Get webhook details |
+| `POST` | `/api/webhooks` | Create new webhook |
+| `PUT` | `/api/webhooks/:id` | Update webhook |
+| `DELETE` | `/api/webhooks/:id` | Delete webhook |
+
+**Snapshots**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/profiles/:profileId/snapshots` | List snapshots for profile |
+| `GET` | `/api/snapshots/:id` | Get snapshot details |
+| `POST` | `/api/profiles/:profileId/snapshots` | Create snapshot |
+| `POST` | `/api/snapshots/:id/restore` | Restore profile from snapshot |
+| `GET` | `/api/snapshots/compare` | Compare two snapshots (`?id1=&id2=`) |
+
+**Observability**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/metrics` | Metrics summary |
+| `GET` | `/api` | API documentation |
 
 ### Validation
 
@@ -329,23 +440,51 @@ synthetic-data-generator-lab/
 │   │   ├── errors.ts             # Error handling
 │   │   ├── aiSuggestions.ts      # OpenAI integration
 │   │   ├── db.ts                 # Prisma client
+│   │   ├── logger.ts             # Structured logging (Phase 3)
+│   │   ├── metrics.ts            # Metrics collection (Phase 3)
+│   │   ├── events.ts             # Domain event bus (Phase 3)
+│   │   ├── adapters/             # Extensibility layer (Phase 3)
+│   │   │   ├── interfaces/
+│   │   │   │   ├── IGeneratorAdapter.ts
+│   │   │   │   ├── IOutputAdapter.ts
+│   │   │   │   ├── INotificationAdapter.ts
+│   │   │   │   └── IValidationAdapter.ts
+│   │   │   ├── implementations/
+│   │   │   │   ├── FakerGeneratorAdapter.ts
+│   │   │   │   ├── FileOutputAdapter.ts
+│   │   │   │   └── ConsoleNotificationAdapter.ts
+│   │   │   └── AdapterRegistry.ts
 │   │   └── __tests__/            # Unit tests
 │   ├── services/
 │   │   ├── profileService.ts     # Profile CRUD
-│   │   └── runService.ts         # Run execution
+│   │   ├── runService.ts         # Run execution
+│   │   ├── templateService.ts    # Template management (Phase 3)
+│   │   ├── scheduleService.ts    # Schedule management (Phase 3)
+│   │   ├── tagService.ts         # Tag management (Phase 3)
+│   │   ├── webhookService.ts     # Webhook management (Phase 3)
+│   │   └── snapshotService.ts    # Snapshot management (Phase 3)
 │   ├── routes/
 │   │   ├── profiles.ts           # Profile API
-│   │   └── runs.ts               # Run API
+│   │   ├── runs.ts               # Run API
+│   │   ├── templates.ts          # Template API (Phase 3)
+│   │   ├── schedules.ts          # Schedule API (Phase 3)
+│   │   ├── tags.ts               # Tag API (Phase 3)
+│   │   ├── webhooks.ts           # Webhook API (Phase 3)
+│   │   └── snapshots.ts          # Snapshot API (Phase 3)
 │   ├── cli.ts                    # CLI entry point
 │   └── server.ts                 # Fastify server
 ├── prisma/
-│   ├── schema.prisma             # Database schema
-│   └── seed.ts                   # Seed script
+│   ├── schema.prisma             # Database schema (8 entities)
+│   └── seed.ts                   # Comprehensive seed data
+├── docs/
+│   ├── PHASE3_OVERVIEW.md        # Phase 3 architecture
+│   └── INTEGRATION_RECIPES.md    # Integration examples
 ├── examples/
 │   ├── residents.sql             # Example schemas
 │   ├── users.sql
 │   └── products.sql
 ├── output/                       # Generated data files
+├── CHANGELOG.md                  # Version history
 ├── Dockerfile                    # Multi-stage Docker build
 ├── docker-compose.yml            # Full stack (app + db)
 ├── docker-compose.dev.yml        # DB only for local dev
@@ -456,26 +595,98 @@ npm run dev
 }
 ```
 
+## Phase 3 Highlights
+
+### Template System
+Create reusable profile templates with parameterization:
+```typescript
+// Create template
+POST /api/templates
+{
+  "name": "E-commerce Users",
+  "isTemplate": true,
+  "templateParams": { "minAge": 18, "maxAge": 65 },
+  "rulesJson": { /* rules with {{minAge}} placeholders */ }
+}
+
+// Instantiate for different use cases
+POST /api/templates/:id/instantiate
+{
+  "name": "Teen Users",
+  "params": { "minAge": 13, "maxAge": 19 }
+}
+```
+
+### Scheduled Generation
+Automate data generation with cron schedules:
+```typescript
+POST /api/schedules
+{
+  "profileId": "...",
+  "cronExpr": "0 0 * * *",  // Daily at midnight
+  "outputFormat": "csv"
+}
+```
+
+### Webhook Integration
+Event-driven notifications with HMAC security:
+```typescript
+POST /api/webhooks
+{
+  "url": "https://hooks.slack.com/...",
+  "events": ["run.completed", "run.failed"],
+  "secret": "webhook-secret"
+}
+```
+
+### Version Control
+Snapshot and restore profiles:
+```typescript
+// Create snapshot
+POST /api/profiles/:id/snapshots
+{ "name": "Before refactor", "comment": "Backup before changes" }
+
+// Restore
+POST /api/snapshots/:id/restore
+
+// Compare
+GET /api/snapshots/compare?id1=...&id2=...
+```
+
+### Extensibility
+Plugin system with adapters:
+```typescript
+// Custom output adapter
+class S3OutputAdapter implements IOutputAdapter {
+  async write(data: GeneratedRow[], metadata: OutputMetadata) {
+    // Write to S3
+  }
+}
+
+adapterRegistry.registerOutputAdapter('s3', new S3OutputAdapter());
+```
+
 ## Future Extensions
 
-Phase 3 roadmap:
+Phase 4 roadmap:
 
 - [ ] **Web UI** (Next.js)
   - Profile editor with visual rule builder
   - Run history and download management
   - Real-time generation progress
+  - Template marketplace
 
 - [ ] **Advanced Features**
   - JSON schema support (not just SQL)
-  - Foreign key relationships
-  - Custom generator plugins
+  - Foreign key relationships and referential integrity
   - Streaming for large datasets (1M+ rows)
+  - Custom constraint solvers
 
 - [ ] **Data Quality**
   - Unique constraint enforcement
-  - Referential integrity
   - Custom validation rules
   - Data distribution controls
+  - Statistical profiling
 
 - [ ] **Export Formats**
   - SQL INSERT statements
@@ -483,10 +694,98 @@ Phase 3 roadmap:
   - Excel (XLSX)
   - Database direct insert
 
-- [ ] **Collaboration**
-  - Share profiles between teams
-  - Version control for rules
-  - Template marketplace
+- [ ] **Scheduler Process**
+  - Background job for executing scheduled runs
+  - Queue management with retry logic
+  - Distributed scheduling support
+
+## Documentation
+
+- **[PHASE3_OVERVIEW.md](docs/PHASE3_OVERVIEW.md)**: Architecture and design decisions
+- **[INTEGRATION_RECIPES.md](docs/INTEGRATION_RECIPES.md)**: Integration examples for various ecosystems
+- **[CHANGELOG.md](CHANGELOG.md)**: Complete version history and migration guides
+
+## Extensibility & Observability
+
+### Adapter System
+
+The system uses adapters for extensibility:
+
+**Generator Adapters**: Custom data generation strategies
+```typescript
+interface IGeneratorAdapter {
+  generateValue(rule: GenerationRule, context: GeneratorContext): any;
+  canHandle(rule: GenerationRule): boolean;
+  getName(): string;
+}
+```
+
+**Output Adapters**: Custom output destinations (S3, databases, etc.)
+```typescript
+interface IOutputAdapter {
+  write(data: GeneratedRow[], metadata: OutputMetadata): Promise<OutputResult>;
+  getFormat(): string;
+}
+```
+
+**Notification Adapters**: Custom notification channels
+```typescript
+interface INotificationAdapter {
+  send(payload: NotificationPayload): Promise<void>;
+  getName(): string;
+}
+```
+
+Register adapters with the AdapterRegistry:
+```typescript
+import { adapterRegistry } from './lib/adapters/AdapterRegistry';
+
+adapterRegistry.registerOutputAdapter('s3', new S3OutputAdapter());
+adapterRegistry.registerGeneratorAdapter('custom', new CustomGeneratorAdapter());
+```
+
+### Event System
+
+Subscribe to domain events:
+```typescript
+import { eventBus, DomainEventType } from './lib/events';
+
+eventBus.on(DomainEventType.RUN_COMPLETED, async (event) => {
+  console.log(`Run ${event.data.runId} completed with ${event.data.rowsGenerated} rows`);
+});
+
+eventBus.on(DomainEventType.TEMPLATE_INSTANTIATED, async (event) => {
+  // Auto-create snapshot when template is instantiated
+  await createSnapshot(event.data.profileId);
+});
+```
+
+### Logging
+
+Structured logging with context:
+```typescript
+import { logger } from './lib/logger';
+
+logger.info('Profile created', { profileId: '...', name: '...' });
+logger.error('Generation failed', error, { profileId: '...', runId: '...' });
+
+// Child logger with default context
+const runLogger = logger.child({ runId: '...' });
+runLogger.info('Starting generation');
+```
+
+### Metrics
+
+Track performance metrics:
+```typescript
+import { metrics, MetricNames } from './lib/metrics';
+
+metrics.incrementCounter(MetricNames.PROFILE_CREATED);
+metrics.recordHistogram(MetricNames.RUN_DURATION_MS, 1234);
+
+// View metrics
+GET /metrics
+```
 
 ## Troubleshooting
 
@@ -537,6 +836,9 @@ MIT
 
 ## Support
 
-- **Documentation**: See [QUICKSTART.md](QUICKSTART.md) for quick setup
-- **Issues**: Report bugs on GitHub Issues
+- **Quick Start**: See [QUICKSTART.md](QUICKSTART.md) for quick setup guide
+- **Architecture**: See [docs/PHASE3_OVERVIEW.md](docs/PHASE3_OVERVIEW.md) for design decisions
+- **Integrations**: See [docs/INTEGRATION_RECIPES.md](docs/INTEGRATION_RECIPES.md) for ecosystem integration examples
+- **Version History**: See [CHANGELOG.md](CHANGELOG.md) for migration guides and release notes
 - **Examples**: Check `/examples` directory for SQL templates
+- **Issues**: Report bugs on GitHub Issues

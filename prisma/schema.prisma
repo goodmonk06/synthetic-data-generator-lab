@@ -12,15 +12,26 @@ datasource db {
 model GenerationProfile {
   id               String           @id @default(uuid())
   name             String
+  description      String?
   sourceType       SourceType
   sourceSchemaJson Json             // Store the parsed schema (table structure or JSON schema)
   rulesJson        Json             // Generation rules for each field
   rowCount         Int              @default(100)
+  isTemplate       Boolean          @default(false)
+  templateParams   Json?            // Parameters for templates
+  parentTemplateId String?
+  parentTemplate   GenerationProfile? @relation("TemplateChildren", fields: [parentTemplateId], references: [id], onDelete: SetNull)
+  childProfiles    GenerationProfile[] @relation("TemplateChildren")
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   runs             GenerationRun[]
+  tags             ProfileTag[]
+  snapshots        ProfileSnapshot[]
+  schedules        Schedule[]
 
   @@map("generation_profiles")
+  @@index([isTemplate])
+  @@index([parentTemplateId])
 }
 
 model GenerationRun {
@@ -31,10 +42,97 @@ model GenerationRun {
   finishedAt DateTime?
   status    RunStatus         @default(PENDING)
   outputPath String?
+  outputFormat String?        // csv, json, sql, parquet
   rowsGenerated Int?
   errorMessage String?
+  executionTimeMs Int?
+  triggeredBy String          @default("manual") // manual, schedule, api, cli
+  scheduleId String?
+  schedule  Schedule?         @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  metadata  Json?             // Additional run metadata
 
   @@map("generation_runs")
+  @@index([profileId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([scheduleId])
+}
+
+model Tag {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  color       String?
+  description String?
+  createdAt   DateTime     @default(now())
+  profiles    ProfileTag[]
+
+  @@map("tags")
+}
+
+model ProfileTag {
+  profileId String
+  tagId     String
+  profile   GenerationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  tag       Tag               @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime          @default(now())
+
+  @@id([profileId, tagId])
+  @@map("profile_tags")
+}
+
+model ProfileSnapshot {
+  id               String            @id @default(uuid())
+  profileId        String
+  profile          GenerationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  version          Int
+  name             String?
+  sourceSchemaJson Json
+  rulesJson        Json
+  rowCount         Int
+  comment          String?
+  createdAt        DateTime          @default(now())
+
+  @@unique([profileId, version])
+  @@map("profile_snapshots")
+  @@index([profileId])
+}
+
+model Schedule {
+  id          String            @id @default(uuid())
+  profileId   String
+  profile     GenerationProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  cronExpr    String            // Cron expression for scheduling
+  enabled     Boolean           @default(true)
+  outputFormat String           @default("csv")
+  outputDir   String            @default("./output")
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  runCount    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  runs        GenerationRun[]
+
+  @@map("schedules")
+  @@index([profileId])
+  @@index([enabled, nextRunAt])
+}
+
+model Webhook {
+  id          String        @id @default(uuid())
+  name        String
+  url         String
+  events      String[]      // ["run.completed", "run.failed", etc.]
+  enabled     Boolean       @default(true)
+  secret      String?       // For HMAC signing
+  headers     Json?         // Custom headers
+  retryCount  Int           @default(3)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("webhooks")
+  @@index([enabled])
 }
 
 enum SourceType {
@@ -47,4 +145,5 @@ enum RunStatus {
   RUNNING
   COMPLETED
   FAILED
+  CANCELLED
 }

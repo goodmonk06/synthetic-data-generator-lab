@@ -44,7 +44,8 @@
     "openai": "^4.20.1",
     "csv-writer": "^1.6.0",
     "sql-parser": "^0.1.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "cron-parser": "^4.9.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
